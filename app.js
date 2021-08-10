@@ -131,7 +131,7 @@ app.post("/generateDocumentCanvas", async(req, res, next) => {
         ...req.body,
     };
 
-     var data = JSON.parse(payload.data);
+    // var payload = JSON.parse(data.data);
     // console.log(payload)
     // const templateId = payload.config.templateId;
     const fileData = fs.readFileSync("file.json").toString();
@@ -140,7 +140,8 @@ app.post("/generateDocumentCanvas", async(req, res, next) => {
     const lastIdcall = fileData_array.pop();
 
     const templateId = lastIdcall.id
-
+ 
+  
     console.log(fileData_array)
 
      await dataList.forEach((list) => {
@@ -152,7 +153,7 @@ app.post("/generateDocumentCanvas", async(req, res, next) => {
             console.log(output);
             carbone.render(
                 `./templates/${list.filename}`,
-                data,
+                payload.data,
                 payload.options,
                 function (err, result) {
                     console.log("result")
@@ -168,8 +169,8 @@ app.post("/generateDocumentCanvas", async(req, res, next) => {
                         message: "your document is ready to download",
                         fileName: `${req.headers.host}/${output}.${payload.options.convertTo}`,
                         templateId: list.id,
-                        data: payload,
-                         datapart: JSON.stringify(data,null,'\t')
+                        data: payload
+                        // data: JSON.stringify(payload,null,'\t')
                     })
                 }
             );
