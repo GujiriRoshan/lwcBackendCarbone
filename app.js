@@ -131,7 +131,7 @@ app.post("/generateDocumentCanvas", async(req, res, next) => {
         ...req.body,
     };
 
-     var payload = JSON.parse(data.data);
+     var payload = JSON.parse(data);
      console.log(payload)
     // const templateId = payload.config.templateId;
     const fileData = fs.readFileSync("file.json").toString();
