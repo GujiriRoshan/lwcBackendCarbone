@@ -132,7 +132,7 @@ app.post("/generateDocumentCanvas", async(req, res, next) => {
     };
 
     // var payload = JSON.parse(data.data);
-    // console.log(payload)
+     console.log(payload)
     // const templateId = payload.config.templateId;
     const fileData = fs.readFileSync("file.json").toString();
     const dataList = JSON.parse(fileData);
