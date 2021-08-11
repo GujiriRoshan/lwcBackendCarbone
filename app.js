@@ -130,9 +130,6 @@ app.post("/generateDocumentCanvas", async(req, res, next) => {
     var payload = {
         ...req.body,
     };
-    // console.log("json string",JSON.stringify(data))
-    // console.log("data",data)
-    // console.log("parsing data",JSON.parse(data))
 
      console.log("payload",payload)
     // const templateId = payload.config.templateId;
