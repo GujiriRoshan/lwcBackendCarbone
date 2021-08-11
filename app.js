@@ -142,7 +142,7 @@ app.post("/generateDocumentCanvas", async(req, res, next) => {
     const templateId = lastIdcall.id
  
   
-    console.log(fileData_array)
+    // console.log(fileData_array)
 
      await dataList.forEach((list) => {
         //  console.log(list)
@@ -150,7 +150,7 @@ app.post("/generateDocumentCanvas", async(req, res, next) => {
             const lastIndex = list.filename.lastIndexOf(".");
             const Stringlength = list.filename.length;
             const output = list.filename.substr(0, lastIndex) + list.filename.substr(Stringlength);
-            console.log(output);
+            // console.log(output);
             carbone.render(
                 `./templates/${list.filename}`,
                 payload.data,
