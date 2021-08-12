@@ -118,7 +118,7 @@ app.post("/addtemplate", upload.single("template"), async (req, res, next) => {
         const templateId = addFileMetaData(file.originalname, outputFileName);
         return res.json({
             message: "file uploading successfully",
-            outputFileName: `${req.headers.host}/${output}.pdf`,
+            outputFileName: `https://${req.headers.host}/${output}.pdf`,
             templateId: templateId.id,
             fileName: templateId.filename
         })
@@ -166,7 +166,7 @@ app.post("/generateDocumentCanvas", async(req, res, next) => {
                     );
                     return res.json({
                         message: "your document is ready to download",
-                        fileName: `${req.headers.host}/${output}.${payload.options.convertTo}`,
+                        fileName: `https://${req.headers.host}/${output}.${payload.options.convertTo}`,
                         templateId: list.id,
                         data: payload
                         // data: JSON.stringify(payload,null,'\t')
