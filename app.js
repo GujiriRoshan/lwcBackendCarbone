@@ -130,17 +130,24 @@ app.post("/generateDocumentCanvas", async(req, res, next) => {
     var payload = {
         ...req.body,
     };
+     let options ={};
+     if(payload.convertTo){ options={convertTo:payload.convertTo}}
+     else if(!payload.options){ options ={convertTo:"pdf"}}
+     else if (!payload.options.convertTo){options ={convertTo :"pdf"} }
+     else if(payload.options.convertTo ){ 
+         const converttoTrim=payload.options.convertTo.trim();
+         const converttoLength= converttoTrim.length
+         if(converttoLength >0){options ={convertTo:payload.options.convertTo}}
+         else{options ={convertTo:"pdf"}}
+     }
+     else {options ={convertTo:"pdf"}}
 
-     console.log("payload",payload)
-    // const templateId = payload.config.templateId;
     const fileData = fs.readFileSync("file.json").toString();
     const dataList = JSON.parse(fileData);
     const fileData_array =[...dataList]
     const lastIdcall = fileData_array.pop();
 
-    const templateId = lastIdcall.id
- 
-  
+    const templateId = lastIdcall.id;
     // console.log(fileData_array)
 
      await dataList.forEach((list) => {
@@ -153,7 +160,7 @@ app.post("/generateDocumentCanvas", async(req, res, next) => {
             carbone.render(
                 `./templates/${list.filename}`,
                 payload.data,
-                payload.options,
+                options,
                 function (err, result) {
                     console.log("result")
                     
@@ -162,12 +169,12 @@ app.post("/generateDocumentCanvas", async(req, res, next) => {
                     }
 
                     fs.writeFileSync(
-                        `templates/${output}.${payload.options.convertTo}`,
+                        `templates/${output}.${Date.now()}.pdf`,
                         result
                     );
                     return res.json({
                         message: "your document is ready to download",
-                        fileName: `https://${req.headers.host}/${output}.${payload.options.convertTo}`,
+                        fileName: `https://${req.headers.host}/${output}.${Date.now()}.pdf`,
                         templateId: list.id,
                         data: payload
                         // data: JSON.stringify(payload,null,'\t')
@@ -178,6 +185,22 @@ app.post("/generateDocumentCanvas", async(req, res, next) => {
         return
     });
 });
+
+app.get('/download',(req,res)=>{
+    let usersjson = fs.readFileSync("file.json", "utf8");
+    let users = JSON.parse(usersjson || "[]");
+    const fileData_array =[...users]
+    const lastIdcall = fileData_array.pop();
+    users.forEach(template=>{
+        if(template.id ==lastIdcall.id){
+            let originalFileName =`${template.filename}`
+            return res.json({
+                downloadFile :`https://${req.headers.host}/${originalFileName}`
+            })
+        }
+    })
+
+})
 
 app.listen(process.env.PORT, () => {
     console.log(`app listening on port ${process.env.PORT}`)
