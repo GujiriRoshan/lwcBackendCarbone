@@ -160,6 +160,7 @@ app.post("/generateDocumentCanvas", async(req, res, next) => {
                     if (err) {
                         console.log(err);
                     }
+
                     fs.writeFileSync(
                         `templates/${output}.${payload.options.convertTo}`,
                         result
