@@ -92,14 +92,14 @@ app.get("/", async (req, res) => {
         })
 
     })
-    fs.readdir(dir, (err, outputfiles) => {
-        if (err) throw err;
-        for (const outputfile of outputfiles) {
-            fs.unlink(path.join(dir, outputfile), err => {
-                if (err) throw err;
-            });
-        }
-    })
+    // fs.readdir(dir, (err, outputfiles) => {
+    //     if (err) throw err;
+    //     for (const outputfile of outputfiles) {
+    //         fs.unlink(path.join(dir, outputfile), err => {
+    //             if (err) throw err;
+    //         });
+    //     }
+    // })
     return res.json({
         message: "Going to home screen"
     })
