@@ -76,6 +76,7 @@ app.get("/", async (req, res) => {
     const file_array = []
     const directory = "templates";
     const dir = "templates/output";
+    const downloadDir ="templates/download"
     await fs.readdir(directory, (err, files) => {
         for (const file of files) {
             if (file != '11.PNG') {
@@ -100,6 +101,15 @@ app.get("/", async (req, res) => {
             });
         }
     })
+    fs.readdir(downloadDir, (err, outputfiles) => {
+        if (err) throw err;
+        for (const outputfile of outputfiles) {
+            fs.unlink(path.join(downloadDir, outputfile), err => {
+                if (err) throw err;
+            });
+        }
+    })
+
     return res.json({
         message: "Going to home screen"
     })
