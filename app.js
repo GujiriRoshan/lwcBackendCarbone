@@ -75,9 +75,9 @@ const addFileMetaData = (fileName, outputFile) => {
 app.get("/", async (req, res) => {
     const file_array = []
     const directory = "templates";
-    const dir = "./templates/output";
+    const dir = "templates/output";
     const downloadDir ="./templates/download"
-    await fs.readdir(directory, (err, files) => {
+    await fs.readdir(directory,async (err, files) => {
         for (const file of files) {
             if (file != '11.PNG') {
                 file_array.push({
@@ -91,16 +91,27 @@ app.get("/", async (req, res) => {
                 console.log('file deleted')
             })
         })
+        await  fs.readdir(dir, (err, fileoutput) => {
+            console.log("outputfiles")
+             if (err){console.log(err)};
+             for (const file of fileoutput) {
+                 fs.unlink(path.join(dir, file), err => {
+                     if (err) throw err;
+                 });
+             }
+         })
+
 
     })
-   await  fs.readdir(dir, (err, outputfiles) => {
-        if (err) throw err;
-        for (const outputfile of outputfiles) {
-            fs.unlink(path.join(dir, outputfile), err => {
-                if (err) throw err;
-            });
-        }
-    })
+//    await  fs.readdir(dir, (err, outputfiles) => {
+//        console.log("outputfiles")
+//         if (err) throw err;
+//         for (const outputfile of outputfiles) {
+//             fs.unlink(path.join(dir, outputfile), err => {
+//                 if (err) throw err;
+//             });
+//         }
+//     })
 //    await fs.readdir(downloadDir, (err, outputfiles) => {
 //         if (err) throw err;
 //         for (const outputfile of outputfiles) {
