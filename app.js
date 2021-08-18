@@ -101,14 +101,14 @@ app.get("/", async (req, res) => {
             });
         }
     })
-   await fs.readdir(downloadDir, (err, outputfiles) => {
-        if (err) throw err;
-        for (const outputfile of outputfiles) {
-            fs.unlink(path.join(downloadDir, outputfile), err => {
-                if (err) throw err;
-            });
-        }
-    })
+//    await fs.readdir(downloadDir, (err, outputfiles) => {
+//         if (err) throw err;
+//         for (const outputfile of outputfiles) {
+//             fs.unlink(path.join(downloadDir, outputfile), err => {
+//                 if (err) throw err;
+//             });
+//         }
+//     })
 
     return res.json({
         message: "Going to home screen"
