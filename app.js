@@ -75,7 +75,6 @@ const addFileMetaData = (fileName, outputFile) => {
 app.get("/", async (req, res) => {
     const file_array = []
     const directory = "templates";
-    const dir = "templates/output";
     await fs.readdir(directory, (err, files) => {
         for (const file of files) {
             if (file != '11.PNG') {
