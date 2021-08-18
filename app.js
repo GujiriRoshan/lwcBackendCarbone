@@ -217,7 +217,7 @@ app.post("/generateDocumentCanvas", async (req, res, next) => {
                     return res.json({
                         message: "your document is ready to download",
                         fileName: `https://${req.headers.host}/output/${output}${randomNumber}.pdf`,
-                        originalTemplate: `https://${req.headers.host}/output/${list.filename}`,
+                        originalTemplate: `https://${req.headers.host}/download/${output}${randomNumber}.pdf`,
                         templateId: list.id,
                         data: payload
                         // data: JSON.stringify(payload,null,'\t')
