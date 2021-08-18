@@ -93,7 +93,7 @@ app.get("/", async (req, res) => {
         })
 
     })
-    fs.readdir(dir, (err, outputfiles) => {
+   await  fs.readdir(dir, (err, outputfiles) => {
         if (err) throw err;
         for (const outputfile of outputfiles) {
             fs.unlink(path.join(dir, outputfile), err => {
@@ -101,7 +101,7 @@ app.get("/", async (req, res) => {
             });
         }
     })
-    fs.readdir(downloadDir, (err, outputfiles) => {
+   await fs.readdir(downloadDir, (err, outputfiles) => {
         if (err) throw err;
         for (const outputfile of outputfiles) {
             fs.unlink(path.join(downloadDir, outputfile), err => {
