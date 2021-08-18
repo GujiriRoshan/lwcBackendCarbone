@@ -54,6 +54,7 @@ const addFileMetaData = (fileName, outputFile) => {
             id: 1,
             filename: fileName,
             outputFileName: outputFile,
+            // downloadFileName :"",
             createdAt: Date.now(),
         });
         usersjson = JSON.stringify(users);
@@ -63,6 +64,7 @@ const addFileMetaData = (fileName, outputFile) => {
             id: lastItem.id + 1,
             filename: fileName,
             outputFileName: outputFile,
+            // downloadFileName :"",
             createdAt: Date.now(),
         });
 
@@ -185,6 +187,9 @@ app.post("/generateDocumentCanvas", async (req, res, next) => {
                         `templates/output/${output}${randomNumber}.pdf`,
                         result
                     );
+                    list.outputFileName =`${output}${randomNumber}.pdf`
+                    fs.writeFileSync('file.json',JSON.stringify(dataList))
+                    
                     //starting of the watermark and pdf protected
                     if (typeof (options.convertTo) == 'object') {
                         const src = `./templates/output/${output}${randomNumber}.pdf`
@@ -210,6 +215,9 @@ app.post("/generateDocumentCanvas", async (req, res, next) => {
                                 .endPage()
                         };
                         pdfDoc.endPDF();
+                        list.outputFileName =`${output}${randomNumber}.pdf`
+                        fs.writeFileSync('file.json',JSON.stringify(dataList))
+
                         // return console.log(options.convertTo.formatOptions.DocumentOpenPassword)
                     }
                     //end of the watermark and pdf protecter
@@ -235,9 +243,9 @@ app.get('/download', (req, res) => {
     const lastIdcall = fileData_array.pop();
     users.forEach(template => {
         if (template.id == lastIdcall.id) {
-            let originalFileName = `${template.filename}`
+            let originalFileName = `${template.outputFileName}`
             return res.json({
-                downloadFile: `https://${req.headers.host}/${originalFileName}`
+                downloadFile: `https://${req.headers.host}/download/${originalFileName}`
             })
         }
     })
