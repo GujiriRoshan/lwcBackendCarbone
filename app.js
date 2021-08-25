@@ -273,7 +273,7 @@ app.post('/generateDocument', async (req, res, next) => {
 
     request.end();
 })
-app.get('/getUrlData', async (req, res, next) => {
+app.post('/UrlData', async (req, res, next) => {
     var host = jsforceConnection.instanceUrl
     var token = jsforceConnection.accessToken
     var serverUrl = req.body.endPoint
