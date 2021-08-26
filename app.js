@@ -273,10 +273,10 @@ app.post('/generateDocument', async (req, res, next) => {
 
     request.end();
 })
-app.post('/UrlData', async (req, res, next) => {
+app.get('/UrlData', async (req, res, next) => {
     var host = jsforceConnection.instanceUrl
     var token = jsforceConnection.accessToken
-    var serverUrl = req.body.endPoint
+    var serverUrl = req.query.endPoint
     console.log(serverUrl)
     //  '/services/data/v51.0/sobjects/Account/0014x00000Do1PpAAJ'
     // payload={
