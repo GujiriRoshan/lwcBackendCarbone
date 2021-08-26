@@ -277,6 +277,7 @@ app.post('/UrlData', async (req, res, next) => {
     var host = jsforceConnection.instanceUrl
     var token = jsforceConnection.accessToken
     var serverUrl = req.body.endPoint
+    console.log(serverUrl)
     //  '/services/data/v51.0/sobjects/Account/0014x00000Do1PpAAJ'
     // payload={
     //     ...req.body
