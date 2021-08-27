@@ -183,7 +183,7 @@ app.post("/addTemplate", upload.single("template"), async (req, res, next) => {
         })
     }
 });
-app.post('/generateDocument', async (req, res, next) => {
+app.post('/generateDocumentPreview', async (req, res, next) => {
 
     const payload = { ...req.body }
     let options = {};
@@ -302,14 +302,13 @@ app.get('/getTemplateId', (req, res, next) => {
         return res.json({
             templateId:templateId_store
         })
-
     }
     catch (err) {
         console.log(err)
     }
 })
 
-app.post('/selectTemplateId',async(req,res,next)=>{
+app.post('/generateDocument',async(req,res,next)=>{
     const templateId = req.body.templateId;
     const result = await jsforceConnection.query("SELECT Id, ContentDocumentId, Title, VersionData,PathOnClient, FileType, VersionNumber, ContentBodyId, IsLatest, ContentUrl FROM ContentVersion where IsLatest = true and Id ='" + templateId + "'")
     if (result.totalSize === 0) {
