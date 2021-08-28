@@ -8,7 +8,6 @@ const axios = require('axios');
 const https = require('https');
 var convertapi = require('convertapi')('xAhHvC71xhmbCZXR');
 const HummusRecipe = require('hummus-recipe');
-
 require('dotenv').config();
 const app = express();
 app.use(cors());
@@ -17,13 +16,7 @@ app.use(express.urlencoded({ extended: true }));
 // parse application/json
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "templates")));
-
 const jsforceConnection = require('./jsforceConnection')
-
-//starting of the reading templateIdstore json
-
-
-//End of the reading templateStore json
 app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader(
@@ -36,10 +29,6 @@ app.use((req, res, next) => {
     );
     next();
 });
-
-
-
-// End of the Error handling
 //Multer storage
 //multer
 const storage = multer.diskStorage({
@@ -56,18 +45,15 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-const addFileMetaData = (fileName, outputFile) => {
+const addFileMetaData = (TemplateId, TemplateName) => {
     let usersjson = fs.readFileSync("file.json", "utf8");
     let users = JSON.parse(usersjson || "[]");
-
     const lastItem = [...users].pop();
-
     if (lastItem == undefined) {
         users.push({
             id: 1,
-            filename: fileName,
-            outputFileName: outputFile,
-            // downloadFileName :"",
+            TemplateId: TemplateId,
+            TemplateName: TemplateName,
             createdAt: Date.now(),
         });
         usersjson = JSON.stringify(users);
@@ -75,13 +61,10 @@ const addFileMetaData = (fileName, outputFile) => {
     } else {
         users.push({
             id: lastItem.id + 1,
-            filename: fileName,
-            outputFileName: outputFile,
-            // downloadFileName :"",
+            TemplateId: TemplateId,
+            TemplateName: TemplateName,
             createdAt: Date.now(),
         });
-
-        console.log("add file ")
         usersjson = JSON.stringify(users);
         fs.writeFileSync("file.json", usersjson, "utf-8");
     }
@@ -140,9 +123,6 @@ app.post("/addTemplate", upload.single("template"), async (req, res, next) => {
                 await result.file.save(`./templates/${output}.pdf`);//save the file
             })
         console.log("outside");
-        //  let outputFileName = `${output}.pdf`
-        //  const templateId = await addFileMetaData(file.originalname, outputFileName);
-
         // file details
         var fileOnServer = `./templates/${file.originalname}`
         var uploadFileName = `${file.originalname}`
@@ -154,14 +134,9 @@ app.post("/addTemplate", upload.single("template"), async (req, res, next) => {
                 'PathOnClient': uploadFileName,
                 'VersionData': base64data,
             },
-                function (err, uploadedAttachment) {
+                async (err, uploadedAttachment) => {
                     if (err) { return res.json({ error: err }) }
-                    var fetchTemplateId = fs.readFileSync('file.json', 'utf8')
-                    var templateId_store = JSON.parse(fetchTemplateId || "[]")
-                    templateId_store.push(uploadedAttachment.id)
-                    fetchTemplateId = JSON.stringify(templateId_store)
-                    fs.writeFileSync("file.json", fetchTemplateId, "utf-8");
-                    console.log(uploadedAttachment)
+                    await addFileMetaData(uploadedAttachment.id, file.originalname,);
                     return res.json({
                         success: true,
                         originalFileName: `https://${req.headers.host}/${file.originalname}`,
@@ -222,12 +197,10 @@ app.post('/generateDocumentPreview', async (req, res, next) => {
     }
     var request = https.request(option, function (response) {
         var chunks = [];
-
         response.on("data", function (chunk) {
             chunks.push(chunk);
             console.log('chunk')
         });
-
         response.on("end", function (chunk) {
             var body = Buffer.concat(chunks);
             fs.writeFileSync(`templates/${fileName}`, body, 'binary');
@@ -236,26 +209,30 @@ app.post('/generateDocumentPreview', async (req, res, next) => {
                     console.log(err);
                     return
                 }
-           
-                const randomNumber = Math.random();
-                fs.writeFileSync(`templates/output/${randomNumber}${fileName}`, resp)
+                var randomNumber = Math.floor(100000 + Math.random() * 900000);
+                // const fileName = file.originalname
+                const splitName =fileName.split('.')
+                const extension =splitName[splitName.length-1]
+                const lastIndex = fileName.lastIndexOf(".");
+                const Stringlength = fileName.length;
+                const output = fileName.substr(0, lastIndex) + fileName.substr(Stringlength);
+                console.log(output);
+                fs.writeFileSync(`templates/output/${output}_${randomNumber}.${extension}`, resp)
                 fs.writeFileSync(
-                    `templates/output/${randomNumber}.pdf`,
+                    `templates/output/${output}_${randomNumber}.pdf`,
                     resp
                 );
                 return res.json({
                     success: true,
                     error: [],
-                    fileName: `https://${req.headers.host}/output/${randomNumber}.pdf`,
-                    originalFileName: `https://${req.headers.host}/output/${randomNumber}${fileName}`,
+                    fileName: `https://${req.headers.host}/output/${output}_${randomNumber}.pdf`,
+                    originalFileName: `https://${req.headers.host}/output/${output}_${randomNumber}.${extension}`,
                 })
-
                 // const outputFileName = `${output}.${data.config.convertTo}`;
                 // fs.writeFileSync(`./output/${outputFileName}`, resp);
                 // fs.unlinkSync(`./template/${fileName}`);
             })
         });
-
         response.on("error", function (error) {
             return res.json({
                 success: false,
@@ -263,54 +240,51 @@ app.post('/generateDocumentPreview', async (req, res, next) => {
             })
         });
     });
-
     request.end();
 })
 app.get('/UrlData', async (req, res, next) => {
     var host = jsforceConnection.instanceUrl
     var token = jsforceConnection.accessToken
     var serverUrl = req.query.endPoint
-    if(!serverUrl){
+    if (!serverUrl) {
         return res.json({
-            error :"Please Enter the Rest endPoint"
+            error: "Please Enter the Rest endPoint"
         })
     }
     //  '/services/data/v51.0/sobjects/Account/0014x00000Do1PpAAJ'
     // payload={
     //     ...req.body
     // }
-   await axios.get(`${host}${serverUrl}`, {
+    await axios.get(`${host}${serverUrl}`, {
         method: "GET",
         headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
         },
     }) //reteriving the salesforce object data using axios
+        .then(result => {
+            delete result.data.attributes
+           return res.json({
+                data: result.data
+            })
+        })
+        .catch(err => { return next(err) })
 
-    .then(result=>{
-     delete result.data.attributes
-    res.json({
-        data: result.data
-    })
-
-    })
-    .catch(err=>{return next(err)})
-  
 })
 app.get('/getTemplateId', (req, res, next) => {
     try {
         var fetchTemplateId = fs.readFileSync('file.json', 'utf-8')
         var templateId_store = JSON.parse(fetchTemplateId || "[]");
         return res.json({
-            templateId:templateId_store
+            templateId: templateId_store
         })
     }
     catch (err) {
-        console.log(err)
+      return next(err)
     }
 })
 
-app.post('/generateDocument',async(req,res,next)=>{
+app.post('/generateDocument', async (req, res, next) => {
     const templateId = req.body.templateId;
     const result = await jsforceConnection.query("SELECT Id, ContentDocumentId, Title, VersionData,PathOnClient, FileType, VersionNumber, ContentBodyId, IsLatest, ContentUrl FROM ContentVersion where IsLatest = true and Id ='" + templateId + "'")
     if (result.totalSize === 0) {
@@ -319,6 +293,7 @@ app.post('/generateDocument',async(req,res,next)=>{
         })
     }
     const fileName = result.records[0].PathOnClient
+    const title = result.records[0].Title
     const fileData = await jsforceConnection.sobject('ContentVersion').record(templateId).blob('Body');
     const host = fileData.headers.host
     const path = result.records[0].VersionData
@@ -340,24 +315,22 @@ app.post('/generateDocument',async(req,res,next)=>{
             chunks.push(chunk);
             console.log('chunk')
         });
-        response.on("end",  async(chunk)=> {
+        response.on("end", async (chunk) => {
             var body = Buffer.concat(chunks);
             fs.writeFileSync(`templates/${fileName}`, body, 'binary');
-               await convertapi.convert('pdf', { File: `./templates/${fileName}` },)
-            .then(async (result) => {
-                var randomNumber = Math.random()
-                // get converted file url
-                console.log("Converted file url: " + result.file.url);
-                await result.file.save(`./templates/${randomNumber}.pdf`);//save the file
-                return res.json({
-                    success:true,
-                    error:[],
-                    fileName: `https://${req.headers.host}/${randomNumber}.pdf`,
-                    originalFileName :`https://${req.headers.host}/${fileName}`
-
-
+            await convertapi.convert('pdf', { File: `./templates/${fileName}` },)
+                .then(async (result) => {
+                    var randomNumber = Math.floor(100000 + Math.random() * 900000);
+                    // get converted file url
+                    console.log("Converted file url: " + result.file.url);
+                    await result.file.save(`./templates/${title}__${randomNumber}.pdf`);//save the file
+                    return res.json({
+                        success: true,
+                        error: [],
+                        fileName: `https://${req.headers.host}/${title}__${randomNumber}.pdf`,
+                        originalFileName: `https://${req.headers.host}/${fileName}`
+                    })
                 })
-            })
         });
         response.on("error", function (error) {
             return res.json({
@@ -365,26 +338,20 @@ app.post('/generateDocument',async(req,res,next)=>{
                 error: error
             })
         });
-
     })
     request.end();
 })
-
 // Error Handling
-  
+
 app.use((error, req, res, next) => {
     const statusCode = error.statusCode || res.statusCode || 500;
     const errorMessage = error.message || error;
     if (statusCode === 500) console.log("app.js", error);
     else console.log("app.js user error", error);
-  
+
     res.status(statusCode).json({ message: errorMessage });
-  }); //End of error handling middleware
-
-
+}); //End of error handling middleware
 // testing purpose
-
-
 app.post("/generate", async (req, res, next) => {
     var payload = {
         ...req.body,
@@ -498,13 +465,7 @@ app.get('/download', (req, res) => {
     })
 
 })
-
 // End of the testing purpose
-
-
-
-
-
 app.listen(process.env.PORT, () => {
     console.log(`app listening on port ${process.env.PORT}`)
 })
