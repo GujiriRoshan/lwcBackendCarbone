@@ -36,6 +36,10 @@ app.use((req, res, next) => {
     );
     next();
 });
+
+
+
+// End of the Error handling
 //Multer storage
 //multer
 const storage = multer.diskStorage({
@@ -121,7 +125,7 @@ app.post("/addTemplate", upload.single("template"), async (req, res, next) => {
         const file = req.file;
         if (!file) {
             return res.json({
-                error: "Use the form data",
+                error: "upload the file",
             });
         }
         const fileName = file.originalname
@@ -143,7 +147,6 @@ app.post("/addTemplate", upload.single("template"), async (req, res, next) => {
         var fileOnServer = `./templates/${file.originalname}`
         var uploadFileName = `${file.originalname}`
         await fs.readFile(fileOnServer, function (err, fileData) {
-            console.log("hello")
             if (err) { console.log(err) }
             var base64data = new Buffer.from(fileData).toString('base64');
             jsforceConnection.sobject('ContentVersion').create({
@@ -153,11 +156,11 @@ app.post("/addTemplate", upload.single("template"), async (req, res, next) => {
             },
                 function (err, uploadedAttachment) {
                     if (err) { return res.json({ error: err }) }
-                    var fetchTemplateId = fs.readFileSync('templateId_store.json', 'utf8')
+                    var fetchTemplateId = fs.readFileSync('file.json', 'utf8')
                     var templateId_store = JSON.parse(fetchTemplateId || "[]")
                     templateId_store.push(uploadedAttachment.id)
                     fetchTemplateId = JSON.stringify(templateId_store)
-                    fs.writeFileSync("templateId_store.json", fetchTemplateId, "utf-8");
+                    fs.writeFileSync("file.json", fetchTemplateId, "utf-8");
                     console.log(uploadedAttachment)
                     return res.json({
                         success: true,
@@ -169,18 +172,8 @@ app.post("/addTemplate", upload.single("template"), async (req, res, next) => {
             )
         })
         // Store to the salesforce
-
-        //end of the storing file
-        // return res.json({
-        //     success:true,
-        //     outputFileName: `https://${req.headers.host}/${output}.pdf`,
-        //     templateId: templateId.id,
-        //     fileName: templateId.filename
-        // })
     } catch (err) {
-        return res.json({
-            error: err
-        })
+        return next(err)
     }
 });
 app.post('/generateDocumentPreview', async (req, res, next) => {
@@ -277,27 +270,36 @@ app.get('/UrlData', async (req, res, next) => {
     var host = jsforceConnection.instanceUrl
     var token = jsforceConnection.accessToken
     var serverUrl = req.query.endPoint
-    console.log(serverUrl)
+    if(!serverUrl){
+        return res.json({
+            error :"Please Enter the Rest endPoint"
+        })
+    }
     //  '/services/data/v51.0/sobjects/Account/0014x00000Do1PpAAJ'
     // payload={
     //     ...req.body
     // }
-    const sfObjData = await axios.get(`${host}${serverUrl}`, {
+   await axios.get(`${host}${serverUrl}`, {
         method: "GET",
         headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
         },
     }) //reteriving the salesforce object data using axios
-    const UrlData = sfObjData.data
-    delete UrlData.attributes
+
+    .then(result=>{
+     delete result.data.attributes
     res.json({
-        data: sfObjData.data
+        data: result.data
     })
+
+    })
+    .catch(err=>{return next(err)})
+  
 })
 app.get('/getTemplateId', (req, res, next) => {
     try {
-        var fetchTemplateId = fs.readFileSync('templateId_store.json', 'utf8')
+        var fetchTemplateId = fs.readFileSync('file.json', 'utf-8')
         var templateId_store = JSON.parse(fetchTemplateId || "[]");
         return res.json({
             templateId:templateId_store
@@ -367,6 +369,17 @@ app.post('/generateDocument',async(req,res,next)=>{
     })
     request.end();
 })
+
+// Error Handling
+  
+app.use((error, req, res, next) => {
+    const statusCode = error.statusCode || res.statusCode || 500;
+    const errorMessage = error.message || error;
+    if (statusCode === 500) console.log("app.js", error);
+    else console.log("app.js user error", error);
+  
+    res.status(statusCode).json({ message: errorMessage });
+  }); //End of error handling middleware
 
 
 // testing purpose
