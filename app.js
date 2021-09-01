@@ -6,7 +6,6 @@ const path = require("path");
 const fs = require("fs");
 const axios = require('axios');
 const https = require('https');
-var convertapi = require('convertapi')('LxLVSImOTdZFnuJX');
 const HummusRecipe = require('hummus-recipe');
 require('dotenv').config();
 const app = express();
@@ -16,7 +15,7 @@ app.use(express.urlencoded({ extended: true }));
 // parse application/json
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "templates")));
-const jsforceConnection = require('./jsforceConnection')
+const jsforceConnection = require('./jsforceConnection');
 app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader(
@@ -32,14 +31,17 @@ app.use((req, res, next) => {
 //Multer storage
 //multer
 const storage = multer.diskStorage({
+    
     destination: function (req, file, cb) {
-        var dir = "./templates";
+        console.log("calling the multer")
+        var dir = req.dir || "./templates";
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir);
         }
         cb(null, dir);
     },
     filename: function (req, file, cb) {
+        console.log("caliing filename")
         cb(null, file.originalname);
     },
 });
@@ -105,6 +107,10 @@ app.get("/", async (req, res) => {
 
 app.post("/addTemplate", upload.single("template"), async (req, res, next) => {
     try {
+        const options = {
+            convertTo: "pdf",
+            extension: "docx"
+        }
         const file = req.file;
         if (!file) {
             return res.json({
@@ -115,132 +121,166 @@ app.post("/addTemplate", upload.single("template"), async (req, res, next) => {
         const lastIndex = fileName.lastIndexOf(".");
         const Stringlength = fileName.length;
         const output = fileName.substr(0, lastIndex) + fileName.substr(Stringlength);
-        console.log(output);
-        await convertapi.convert('pdf', { File: `./templates/${file.originalname}` },)
-            .then(async (result) => {
-                // get converted file url
-                console.log("Converted file url: " + result.file.url);
-                await result.file.save(`./templates/${output}.pdf`);//save the file
-            })
-        console.log("outside");
-        // file details
-        var fileOnServer = `./templates/${file.originalname}`
-        var uploadFileName = `${file.originalname}`
-        await fs.readFile(fileOnServer, function (err, fileData) {
+        //convert to pdf
+        await fs.readFile(`./templates/${file.originalname}`, async (err, result) => {
             if (err) { console.log(err) }
-            var base64data = new Buffer.from(fileData).toString('base64');
-            jsforceConnection.sobject('ContentVersion').create({
-                'Title': output,
-                'PathOnClient': uploadFileName,
-                'VersionData': base64data,
-            },
-                async (err, uploadedAttachment) => {
-                    if (err) { return res.json({ error: err }) }
-                    await addFileMetaData(uploadedAttachment.id, file.originalname,);
-                    return res.json({
-                        success: true,
-                        originalFileName: `https://${req.headers.host}/${file.originalname}`,
-                        outputFileName: `https://${req.headers.host}/${output}.pdf`,
-                        templateId: uploadedAttachment.id
-                    })
-                }
-            )
+            await carbone.convert(result, options, async (err, fileData) => {
+                if (err) { console.log(err) }
+                fs.writeFileSync(`./templates/${output}.pdf`, fileData)
+                // file details
+                var fileOnServer = `./templates/${file.originalname}`
+                var uploadFileName = `${file.originalname}`
+                await fs.readFile(fileOnServer, function (err, fileData) {
+                    if (err) { console.log(err) }
+                    var base64data = new Buffer.from(fileData).toString('base64');
+                    jsforceConnection.sobject('ContentVersion').create({
+                        'Title': output,
+                        'PathOnClient': uploadFileName,
+                        'VersionData': base64data,
+                        'IsMajorVersion':false
+                    },
+                        async (err, uploadedAttachment) => {
+                            if (err) { 
+                                console.log(err)
+                                return res.json({ error: err }) }
+                            await addFileMetaData(uploadedAttachment.id, file.originalname,);
+                            return res.json({
+                                success: true,
+                                originalFileName: `https://${req.headers.host}/${file.originalname}`,
+                                outputFileName: `https://${req.headers.host}/${output}.pdf`,
+                                templateId: uploadedAttachment.id
+                            })
+                        }
+                    )
+                })
+            })
         })
-        // Store to the salesforce
     } catch (err) {
         return next(err)
     }
 });
 app.post('/generateDocumentPreview', async (req, res, next) => {
 
-    const payload = { ...req.body }
-    let options = {};
-    if (!payload.options) {
-        options = { convertTo: "pdf" }
-    }
-    else if (typeof (payload.options.convertTo) == 'string') { options = { convertTo: payload.options.convertTo } }
-    else if (typeof (payload.options.convertTo) == 'object') {
-        options = {
-            convertTo: {
-                formatName: 'pdf',
-                formatOptions: {
-                    EncryptFile: true,
-                    DocumentOpenPassword: payload.options.convertTo.formatOptions.DocumentOpenPassword,
-                    Watermark: payload.options.convertTo.formatOptions.Watermark
+    try {
+        const payload = {
+            ...req.body,
+        }
+        let options = {};
+        if (!payload.options) {
+            options = { convertTo: "pdf" }
+        }
+        else if (typeof (payload.options.convertTo) == 'string') { options = { convertTo: payload.options.convertTo } }
+        else if (typeof (payload.options.convertTo) == 'object') {
+            options = {
+                convertTo: {
+                    formatName: 'pdf',
+                    formatOptions: {
+                        EncryptFile: true,
+                        DocumentOpenPassword: payload.options.convertTo.formatOptions.DocumentOpenPassword,
+                        Watermark: payload.options.convertTo.formatOptions.Watermark
+                    }
                 }
             }
         }
-    }
-    else { options = { convertTo: "pdf" } }
-    const templateId = payload.templateId
-    const result = await jsforceConnection.query("SELECT Id, ContentDocumentId, Title, VersionData,PathOnClient, FileType, VersionNumber, ContentBodyId, IsLatest, ContentUrl FROM ContentVersion where IsLatest = true and Id ='" + templateId + "'")
-    //   console.log(result.totalSize)
-    if (result.totalSize === 0) {
-        return res.json({
-            error: "Invalid Template id"
-        })
-    }
-    const fileName = result.records[0].PathOnClient
-    const fileData = await jsforceConnection.sobject('ContentVersion').record(templateId).blob('Body');
-    const host = fileData.headers.host
-    const path = result.records[0].VersionData
-    const token = fileData.headers.Authorization
-    const option = {
-        hostname: host,
-        port: 443,
-        path: path,
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/octet-stream',
-            'Authorization': token
+        else { options = { convertTo: "pdf" } }
+        options.extension = "docx"
+        const templateId = payload.templateId
+        const result = await jsforceConnection.query("SELECT Id, ContentDocumentId, Title, VersionData,PathOnClient, FileType,FileExtension,VersionNumber, ContentBodyId, IsLatest, ContentUrl FROM ContentVersion where IsLatest = true and Id ='" + templateId + "'")
+        //   console.log(result.totalSize)
+        if (result.totalSize === 0) {
+            return res.json({
+                error: "Invalid Template id"
+            })
         }
-    }
-    var request = https.request(option, function (response) {
-        var chunks = [];
-        response.on("data", function (chunk) {
-            chunks.push(chunk);
-            console.log('chunk')
-        });
-        response.on("end", function (chunk) {
-            var body = Buffer.concat(chunks);
-            fs.writeFileSync(`templates/${fileName}`, body, 'binary');
-            carbone.render(`./templates/${fileName}`, payload.data, options, async (err, resp) => {
+        const fileName = result.records[0].Title
+        const fileData = await jsforceConnection.sobject('ContentVersion').record(templateId).blob('Body');
+        const host = fileData.headers.host
+        const path = result.records[0].VersionData
+        const token = fileData.headers.Authorization
+        var fileExt = result.records[0].FileExtension
+        const option = {
+            hostname: host,
+            port: 443,
+            path: path,
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/octet-stream',
+                'Authorization': token
+            }
+        }
+
+        const getFileRequest = new Promise((resolve, reject) => {
+            var request = https.request(option, function (response) {
+                var chunks = [];
+                response.on("data", function (chunk) {
+                    chunks.push(chunk);
+                    console.log('chunk')
+                });
+                response.on("end", async function (chunk) {
+                    var body = Buffer.concat(chunks);
+                    fs.writeFile(`templates/${fileName}.${fileExt}`, body, (err, result) => {
+                        if (err) {
+                            reject(err)
+                            console.log(err)
+                        }
+                        resolve(result)
+                    });
+                });
+                response.on("error", function (error) {
+                    return res.json({
+                        success: false,
+                        error: error
+                    })
+                });
+            })
+            request.end();
+
+        })
+
+        getFileRequest.then(async x => {
+            await carbone.render(`./templates/${fileName}.${fileExt}`, payload.data, async function (err, resp) {
                 if (err) {
                     console.log(err);
                     return
                 }
                 var randomNumber = Math.floor(100000 + Math.random() * 900000);
-                // const fileName = file.originalname
-                const splitName =fileName.split('.')
-                const extension =splitName[splitName.length-1]
-                const lastIndex = fileName.lastIndexOf(".");
-                const Stringlength = fileName.length;
-                const output = fileName.substr(0, lastIndex) + fileName.substr(Stringlength);
-                console.log(output);
-                fs.writeFileSync(`templates/output/${output}_${randomNumber}.${extension}`, resp)
-                fs.writeFileSync(
-                    `templates/output/${output}_${randomNumber}.pdf`,
-                    resp
-                );
-                return res.json({
-                    success: true,
-                    error: [],
-                    fileName: `https://${req.headers.host}/output/${output}_${randomNumber}.pdf`,
-                    originalFileName: `https://${req.headers.host}/output/${output}_${randomNumber}.${extension}`,
+
+                // write the result
+                fs.writeFileSync(`templates/output/${fileName}_${randomNumber}.${fileExt}`, resp)
+                await fs.readFile(`templates/output/${fileName}_${randomNumber}.${fileExt}`, async (err, result) => {
+                    if (err) { console.log(err) }
+                    await carbone.convert(result, options, async (err, fileData) => {
+                        if (err) { console.log(err) }
+                        fs.writeFileSync(`templates/output/${fileName}_${randomNumber}.pdf`, fileData);
+                        await fs.readFile(`templates/output/${fileName}_${randomNumber}.pdf`, function (err, pdfData) {
+                            if (err) { next(err) }
+                            var base64dataForRecord = new Buffer.from(pdfData).toString('base64');
+                            jsforceConnection.sobject('Attachment').create({
+                                ParentId: payload.recordId,
+                                Name: `${fileName}_${randomNumber}.pdf`,
+                                Body: base64dataForRecord,
+                               // ContentType: 'application/pdf',
+                            });
+
+                        })
+                        return res.json({
+                            success: true,
+                            error: [],
+                            fileName: `https://${req.headers.host}/output/${fileName}_${randomNumber}.pdf`,
+                            originalFileName: `https://${req.headers.host}/output/${fileName}_${randomNumber}.${fileExt}`,
+                        })
+                    })
+
                 })
-                // const outputFileName = `${output}.${data.config.convertTo}`;
-                // fs.writeFileSync(`./output/${outputFileName}`, resp);
-                // fs.unlinkSync(`./template/${fileName}`);
-            })
-        });
-        response.on("error", function (error) {
-            return res.json({
-                success: false,
-                error: error
-            })
-        });
-    });
-    request.end();
+
+            });
+
+        })
+    }
+
+    catch (err) { next(err) }
+
+
 })
 app.get('/UrlData', async (req, res, next) => {
     var host = jsforceConnection.instanceUrl
@@ -264,7 +304,7 @@ app.get('/UrlData', async (req, res, next) => {
     }) //reteriving the salesforce object data using axios
         .then(result => {
             delete result.data.attributes
-           return res.json({
+            return res.json({
                 data: result.data
             })
         })
@@ -280,12 +320,16 @@ app.get('/getTemplateId', (req, res, next) => {
         })
     }
     catch (err) {
-      return next(err)
+        return next(err)
     }
 })
 
 app.post('/generateDocument', async (req, res, next) => {
     const templateId = req.body.templateId;
+    const options = {
+        convertTo: "pdf",
+        extension: "docx"
+    }
     const result = await jsforceConnection.query("SELECT Id, ContentDocumentId, Title, VersionData,PathOnClient, FileType, VersionNumber, ContentBodyId, IsLatest, ContentUrl FROM ContentVersion where IsLatest = true and Id ='" + templateId + "'")
     if (result.totalSize === 0) {
         return res.json({
@@ -318,12 +362,14 @@ app.post('/generateDocument', async (req, res, next) => {
         response.on("end", async (chunk) => {
             var body = Buffer.concat(chunks);
             fs.writeFileSync(`templates/${fileName}`, body, 'binary');
-            await convertapi.convert('pdf', { File: `./templates/${fileName}` },)
-                .then(async (result) => {
+            //Start of the convert pdf
+            await fs.readFile(`./templates/${fileName}`, async (err, result) => {
+                if (err) { console.log(err) }
+                console.log(result)
+                await carbone.convert(result, options, (err, fileData) => {
+                    if (err) { console.log(err) }
                     var randomNumber = Math.floor(100000 + Math.random() * 900000);
-                    // get converted file url
-                    console.log("Converted file url: " + result.file.url);
-                    await result.file.save(`./templates/${title}__${randomNumber}.pdf`);//save the file
+                    fs.writeFileSync(`./templates/${title}__${randomNumber}.pdf`, fileData);
                     return res.json({
                         success: true,
                         error: [],
@@ -331,6 +377,8 @@ app.post('/generateDocument', async (req, res, next) => {
                         originalFileName: `https://${req.headers.host}/${fileName}`
                     })
                 })
+            })
+            //End of the convert pdf
         });
         response.on("error", function (error) {
             return res.json({
@@ -341,6 +389,88 @@ app.post('/generateDocument', async (req, res, next) => {
     })
     request.end();
 })
+
+const storageOfmulter = multer.diskStorage({
+    
+    destination: function (req, file, cb) {
+        console.log("calling the multer")
+        var dir ="./templates/templateFile";
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir);
+        }
+        cb(null, dir);
+    },
+    filename: function (req, file, cb) {
+        console.log("caliing filename")
+        cb(null, file.originalname);
+    },
+});
+const fileupload = multer({ storage: storageOfmulter });
+
+app.put('/updateTemplate', fileupload.single("template"), async (req, res, next) => {
+    const file = req.file;
+    const options = {
+        convertTo: "pdf",
+        extension: "docx"
+    }
+    if (!file) {
+        return res.json({
+            error: "upload the file",
+        });
+    }
+    const templateId = req.body.templateId;
+    let usersjson = fs.readFileSync("file.json", "utf8");
+    let users = JSON.parse(usersjson || "[]");
+    var templateName = null
+    await users.forEach(x => {
+       
+        if (templateId === x.TemplateId) {
+            templateName = x.TemplateName
+        }
+        return
+    })
+
+    fs.copyFile(`./templates/templateFile/${file.originalname}`, `./templates/${templateName}`, async (err,result) => {
+      
+        if (err) throw err;
+        const fileName = templateName
+        const lastIndex = fileName.lastIndexOf(".");
+        const Stringlength = fileName.length;
+        const output = fileName.substr(0, lastIndex) + fileName.substr(Stringlength);
+        console.log(output)
+        //Start of the convert to the pdf
+        await fs.readFile(`./templates/${templateName}`, async (err, result) => {
+            console.log("base64data")
+            var base64data = new Buffer.from(result).toString('base64');
+            if (err) { console.log(err) }
+            console.log(result)
+            await carbone.convert(result, options, (err, fileData) => {
+                console.log("convertapi")
+                if (err) { console.log(err) }
+                fs.writeFileSync(`./templates/${output}.pdf`, fileData);
+                fs.unlinkSync(`./templates/templateFile/${file.originalname}`);
+            })
+            jsforceConnection.sobject('ContentVersion').update({
+                "Id": templateId,
+                'VersionData':base64data,
+            }, function (err, ret) {
+                if(err){console.log(err)}
+                console.log("inside the versiondata")
+               // if (err || !ret.success) { return console.error(err, ret); }
+                console.log('Updated Successfully : ');
+                return res.json({
+                    success: true,
+                    error: [],
+                    originalFileName: `https://${req.headers.host}/${templateName}`,
+                    outputFileName: `https://${req.headers.host}/${output}.pdf`,
+                })
+            
+            });
+        })
+        //End of the convert to the pdf
+  
+    });
+  })
 // Error Handling
 
 app.use((error, req, res, next) => {
@@ -351,6 +481,7 @@ app.use((error, req, res, next) => {
 
     res.status(statusCode).json({ message: errorMessage });
 }); //End of error handling middleware
+
 // testing purpose
 app.post("/generate", async (req, res, next) => {
     var payload = {
@@ -462,6 +593,23 @@ app.get('/download', (req, res) => {
                 downloadFile: `https://${req.headers.host}/download/${originalFileName}`
             })
         }
+    })
+
+})
+
+app.post('/convertToPdf', async (req, res, next) => {
+    // Data to inject
+    const options = {
+        convertTo: "pdf",
+        extension: "docx"
+    }
+    await fs.readFile('./abc.ODT', async (err, result) => {
+        if (err) { console.log(err) }
+        console.log(result)
+        await carbone.convert(result, options, (err, fileData) => {
+            if (err) { console.log(err) }
+            fs.writeFileSync('invoice.pdf', fileData)
+        })
     })
 
 })
