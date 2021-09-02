@@ -139,7 +139,9 @@ app.post("/addTemplate", upload.single("template"), async (req, res, next) => {
                         'VersionData': base64data,
                         'IsMajorVersion':false
                     },
+                    //query contentversion get the contentdoucumentid get(069)
                         async (err, uploadedAttachment) => {
+                        
                             if (err) { 
                                 console.log(err)
                                 return res.json({ error: err }) }
@@ -451,6 +453,7 @@ app.put('/updateTemplate', fileupload.single("template"), async (req, res, next)
                 fs.unlinkSync(`./templates/templateFile/${file.originalname}`);
             })
             jsforceConnection.sobject('ContentVersion').update({
+                //create
                 "Id": templateId,
                 'VersionData':base64data,
             }, function (err, ret) {
